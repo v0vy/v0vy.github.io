@@ -157,6 +157,12 @@ main li {
   line-height: 1.5;
 }
 
+/* ===== Code Fonts ===== */
+
+code, pre, pre code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
 /* ===== Code Block Header ===== */
 
 .code-header {
