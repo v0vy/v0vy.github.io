@@ -7,9 +7,9 @@ toc: true
 summary: "Bypassing PIE, stack canaries, and using ret2csu to exploit a buffer overflow."
 ---
 
-Womp Womp is a pwn/binary exploitation challenges where we're given a binary and have to leak addresses to bypass PIE and canary protections. After that, we have to utilize a ROP technique called ret2csu which I was not previously aware about! It was a very fun technique to learn about and explore. Shotout to the [EHAX](https://ehax.in/) team for hosting a great CTF and the challenge authors nrg & the_moon_guy.
+Womp Womp is a [pwn/binary exploitation](https://ctf101.org/binary-exploitation/overview/) challenge where we're given a binary and have to leak addresses to bypass PIE and canary protections. After that, we have to utilize a ROP technique called [ret2csu](https://ir0nstone.gitbook.io/notes/binexp/stack/ret2csu) which I was not previously aware about. It was a very fun technique to learn about and explore! Shotout to the [EHAX](https://ehax.in/) team for hosting a great CTF and the challenge authors nrg & the_moon_guy.
 
-Although I'm still relatively new to pwn, writing about these challenges helps deepen my understanding of the techniques used, so expect more writeups in the future from this category. 
+Although I'm still relatively new to pwn, writing about these challenges helps deepen my understanding of the techniques used, so expect more writeups from this category in the future!
 
 
 ## Binary Checks
@@ -45,7 +45,7 @@ pwn@docker:/ctf$ checksec --file=challenge
 
 Every modern binary mitigation is turned on. NX/DEP means we cannot execute shellcode, Full RELRO means we cannot overwrite GOT entries, we must leak a canary/secret value for buffer overflows, and all addresses are randomized when starting a new process (PIE).
 
-## Bypassing PIE and Canary
+## Reversing
 
 To reverse engineer the vulnerabilities I check out Ghidra's decompilation. Here's the relevant functions that we need to analyze from the challenge binary:
 
@@ -65,9 +65,7 @@ undefined8 main(void)
   finalize_entry();
   return 0;
 }
-```
 
-```c
 void submit_note(void)
 
 {
@@ -87,9 +85,7 @@ void submit_note(void)
   }
   return;
 }
-```
 
-```c
 void review_note(void)
 
 {
@@ -111,9 +107,7 @@ void review_note(void)
   }
   return;
 }
-```
 
-```c
 void finalize_entry(void)
 
 {
@@ -133,7 +127,7 @@ void finalize_entry(void)
 }
 ```
 
-Here's the only function we need to know from `libcoreio.so`
+Here's the only function we need from `libcoreio.so`
 
 ```c
 void emit_report(long param_1,long param_2,long param_3)
@@ -230,15 +224,17 @@ Aborted
 
 I got the stack smashing message because of the canary protection.
 
+## Bypassing PIE & Canary
+
 To leak the canary, we'll need to use the vulnerability inside of the `submit_note()` where it leaks out the value of the stack canary every time since it writes to stdout passed `local_58`'s buffer:
 
 ```c
 write(1,local_58,0x58);
 ```
 
-Since the `local_58` buffer can only hold up to 0x48 bytes, the write syscall leaks about 0x18 bytes of information from adjacent stack addresses
+Since the `local_58` buffer can only hold up to 0x48 bytes, the write syscall leaks about 0x10 bytes of information from adjacent stack addresses outside of `local_58`.
 
-Here's a diagram of the stack inside of that function to visualize what's going on:
+Here's a diagram of the stack frame fir `submit_note()`:
 
 ```
 [ local_58 (0x48 bytes) ]
@@ -247,16 +243,16 @@ Here's a diagram of the stack inside of that function to visualize what's going 
 [ return addr (0x8)     ]
 ```
 
-0x58 - 0x40 = 0x18 bytes of stack leak which will include:
-- 8 Bytes of unused local_58
+0x58 (number of bytes we write to stdout) - 0x40 (our input) = 0x18 bytes of leak which will include:
+- 8 Bytes of unused `local_58`
 - Stack Canary (8 bytes)
-- saved RBP (8 bytes)
+- Saved `$rbp` (8 bytes)
 
 Next, to bypass PIE, we leverage the same kind of vulnerability inside of `review_note()` which leaks other local variables on the stack.
 
-Inside of `review_note`, `local_18` is a pointer to the function on the stack, if we're able to leak that address, then we can calculate the PIE base
+Inside of `review_note()`, `local_18` is a pointer to the function on the stack, if we're able to leak that address, then we can calculate the PIE base.
 
-Here's a diagram of that function:
+Here's a diagram of its stack frame:
 
 ```
 [ local_38 (0x20 bytes)        ]
@@ -266,11 +262,13 @@ Here's a diagram of that function:
 [ return addr (0x8 bytes)      ]
 ```
 
-0x30 - 0x20 = 0x10 bytes of stack leak which will include:
-- local_18 (pointer to `finalize_note`)
-- Stack canary
+0x30 (number of bytes to stdout) - 0x20 (our input)= 0x10 bytes of stack leak which will include:
+- local_18 (pointer to `finalize_note`, 8 bytes)
+- Stack canary (8 bytes)
 
-Since the stack canary for a single process is the same throughout all functions, we only need to use the vulnerability inside of `review_note()` to bypass the canary and PIE. For now, we don't need to use any leakage from `submit_note()` but we'll need to use it later on.
+Since the stack canary for a single process is the same throughout all functions, we only need to use the vulnerability inside of `review_note()` to bypass the canary and PIE. 
+
+For now, we don't need to use any leakage from `submit_note()`, however later on  we'll need to use it to leak its saved `$rbp`.
 
 
 Here's a pwntools script to automate the process of getting the PIE base and canary:
@@ -305,6 +303,8 @@ log.info(f"pie_base   = {pie_base:#x}")
 p.close()
 ```
 
+Running it multiple times:
+
 ```bash
 pwn@docker:/ctf$ python3 leak.py
 [+] Starting local process './challenge': pid 16
@@ -327,15 +327,19 @@ pwn@docker:/ctf$ python3 leak.py
 ```
 
 
-We can confirm we have the correct leakages because subtracting the static offset of `finalize_note()` from the leaked function pointer yields a page-aligned PIE base (lower 12 bits equal to zero), and the leaked canary matches across both functions within the same process and ends with a null byte (`canary & 0xff == 0`), which is the expected structure of a stack canary on x86_64 Linux.
+We can confirm we have the correct leakages because subtracting the static offset of `finalize_note()` from the leaked function pointer gives a page-aligned PIE base (lower 12 bits equal to zero). 
+
+The leaked canary matches across both functions within the same process and ends with a null byte (`canary & 0xff == 0`), which is the expected structure of a stack canary on x86_64 Linux.
+
+We can also confirm by running our script and attaching GDB to the process.
 
 ## ret2csu
 
-After overcoming the protections of the binary our final goal is to use the buffer overflow when sending our final payload to return to the `emit_report()` function with the three specified arguments.
+After overcoming the protections of the binary the final goal is to use the buffer overflow when sending our final payload to return to the `emit_report()` function with the three specified arguments.
 
-Normally, I would jump to an address passed those checks, however `emit_report()` is located in a shared object which is at a completely separate address by ASLR.
+Normally, I would jump to an address passed those checks, however `emit_report()` is located in a shared object at a completely separate address by ASLR.
 
-We'll need to leverage [ROP](https://help.eset.com/glossary/en-US/rop_attack.html) (return oriented programming) to set `$rdi` to 0xdeadbeefdeadbeef, `$rsi` to 0xcafebabecafebabe and `$rdx` to 0xd00df00dd00df00d. Simple enough right?
+We'll need to leverage ROP (return oriented programming) to set `$rdi` to 0xdeadbeefdeadbeef, `$rsi` to 0xcafebabecafebabe and `$rdx` to 0xd00df00dd00df00d. Simple enough right?
 
 ```bash
 pwn@docker:/ctf$ ropper --file=challenge --search="pop rdi"
@@ -369,12 +373,15 @@ pwn@docker:/ctf$ ropper --file=challenge | grep -i rdx
 ```
 
 
-We have gadgets we can utilize for setting our first 2 arguments, however there's no such gadget existing for `$rdx`
+We have gadgets we can utilize for setting the first 2 arguments, however there's no such gadget existing for `$rdx`
 
 I was stuck at this point for a bit, but upon doing some research, I learned that we can use a ROP technique called **ret2csu** also known as "Universal Gadget ROP" that was introduced at Black Hat Asia in 2018.
 
 The basic gist of this technique is that when a binary is compiled with glibc, it contains a function called `__libc_csu_init()` which includes gadgets that tools like Ropgadget and Ropper can't find since they're separated by call instructions rather than ret. If you want to learn more about this technique here's a link to the original paper which explains it better than I could: [ret2csu original paper](https://i.blackhat.com/briefings/asia/2018/asia-18-Marco-return-to-csu-a-new-method-to-bypass-the-64-bit-Linux-ASLR-wp.pdf)
 
+Side Note: Starting from [glibc 2.34](https://lwn.net/Articles/864920/#:~:text=CSU), the CSU has been hardened to remove the useful gadgets.
+
+Let's checkout the disassembly of this function:
 
 ```asm
 pwndbg> disass __libc_csu_init
@@ -420,16 +427,19 @@ Here's Binjas graph view which helped me visualize it better:
 
 ![Binary Ninja graph view of __libc_csu_init](csu-init-graph.png)
 
+The boxed gadgets are what we're making use of inside of our ROP chain with the red representing what I will be calling first and the orange being the second gadget.
 
-The instruction we care about is at `0xc80`, which moves the value of `$r13` into `$rdx`. But to control what's in `$r13`, we first need to use the gadget starting at `0xc9a`, which gives us a pop sequence to load six registers including `$r13`.
+The main instruction we care about is at `0xc80` since it moves a value into `$rdx`. To control what's in `$r13`, we first use the gadget at `0xc9a` hence why we have the gadget placements the way they are.
 
-However, after the call at `0xc80`, the code increments `$rbx` and checks if it equals `rbp`. If they don't match, execution jumps back to `0xc80` and we're stuck in an infinite loop.
+After the first gadget completes, we return to our second gadget where it sets `$rdx` to the value we wanted. The rest of the assembly inside of the function is then completed since it hasn't hit a return statement yet. The `call` at `0xc89` is another problem we'll have to face since it dereferences an address set by `$r12` and `$rbx`. To bypass this, we control `$rbx` and `$r12` directly from the first gadget's pop sequence. By setting `$rbx` to 0, the dereference simplifies to `call [r12]`.
 
-Since `$rbx` is one of the registers popped in the sequence starting at `0xc9a`, we first set it to 0 and `rbp` to 1 in our first gadget, so after the single call, `$rbx` becomes 1, which will make the loop exit cleanly.
+We then set `$r12` to point at the start of our overflow buffer, where we pre-plant the address of a ret gadget. To do this we use the leak from our first input to obtain `main()`'s saved `$rbp`, then subtract the fixed offset to the start of `finalize_entry()`'s input buffer. The call dereferences that address, reads the ret gadget address we planted there, and jumps to it which will immediately returns back into the CSU loop.
 
-Another constraint is the call dereference of `$r12` at `0xc89`, that reads a function pointer from that memory address, and jumps to it. We'll want to plant a return gadget address at the start of our buffer, point `$r12` at that location, and the call simply hits ret and returns straight back into the chain. To do this, I leveraged the leak from `submit_note()` and calculated the offset to a return gadget.
+Another constraint exists at `0xc91`, since we may enter an infinite loop if we don't set the values of `$rbx` and `$rbp` correctly. We need to make sure that we set `$rbp` to 0 and `$rbp` to 1 since `$rbx` will be incremented by 1 before their comparison.
 
-Here's a full visualization of the ROP chain:
+Note: `$rbx` must be equal to 0 since the call at `0xc89` also relies on it
+
+That might've been very confusing so here's a full visualization of the ROP chain:
 
 ![ROP chain visualization](rop-chain.png)
 
