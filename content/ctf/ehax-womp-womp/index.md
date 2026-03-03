@@ -9,7 +9,7 @@ summary: "Bypassing PIE, stack canaries, and using ret2csu to exploit a buffer o
 
 Womp Womp is a pwn/binary exploitation challenges where we're given a binary and have to leak addresses to bypass PIE and canary protections. After that, we have to utilize a ROP technique called ret2csu which I was not previously aware about! It was a very fun technique to learn about and explore. Shotout to the [EHAX](https://ehax.in/) team for hosting a great CTF and the challenge authors nrg & the_moon_guy.
 
-Although I'm still a beginer in pwn, writing about these challenges helps deepen my understanding of the techniques used, so expect more writeups in the future in this category. 
+Although I'm still relatively new to pwn, writing about these challenges helps deepen my understanding of the techniques used, so expect more writeups in the future from this category. 
 
 
 ## Binary Checks
