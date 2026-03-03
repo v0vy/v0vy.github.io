@@ -1,5 +1,5 @@
 ---
-title: "BKCTF - Super Dubs World"
+title: "BKCTF 2026 - Super Dubs World"
 date: 2026-02-24
 tags: ["misc", "bkctf"]
 draft: false

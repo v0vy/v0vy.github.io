@@ -1,10 +1,10 @@
 ---
-title: "EHAX 2026 - Womp Womp"
+title: "EHAX CTF 2026 - Womp Womp"
 date: 2026-03-02
 tags: ["pwn", "rop", "ret2csu", "ehax"]
 draft: false
 toc: true
-summary: "Bypassing PIE, stack canaries, and using ret2csu to exploit a buffer overflow with all modern mitigations enabled."
+summary: "Bypassing PIE, stack canaries, and using ret2csu to exploit a buffer overflow."
 ---
 
 Womp Womp is a pwn/binary exploitation challenges where we're given a binary and have to leak addresses to bypass PIE and canary protections. After that, we have to utilize a ROP technique called ret2csu which I was not previously aware about! It was a very fun technique to learn about and explore. Shotout to the [EHAX](https://ehax.in/) team for hosting a great CTF and the challenge authors nrg & the_moon_guy.
