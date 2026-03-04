@@ -435,7 +435,7 @@ After the first gadget completes, we return to our second gadget where it sets `
 
 We then set `$r12` to point at the start of our overflow buffer, where we pre-plant the address of a ret gadget. To do this we use the leak from our first input to obtain `main()`'s saved `$rbp`, then subtract the fixed offset to the start of `finalize_entry()`'s input buffer. The call dereferences that address, reads the ret gadget address we planted there, and jumps to it which will immediately returns back into the CSU loop.
 
-Another constraint exists at `0xc91`, since we may enter an infinite loop if we don't set the values of `$rbx` and `$rbp` correctly. We need to make sure that we set `$rbp` to 0 and `$rbp` to 1 since `$rbx` will be incremented by 1 before their comparison.
+Another constraint exists at `0xc91`, since we may enter an infinite loop if we don't set the values of `$rbx` and `$rbp` correctly. We need to make sure that we set `$rbx` to 0 and `$rbp` to 1 since `$rbx` will be incremented by 1 before their comparison.
 
 Note: `$rbx` must be equal to 0 since the call at `0xc89` also relies on it
 
