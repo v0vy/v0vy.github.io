@@ -161,6 +161,9 @@ main li {
 
 code, pre, pre code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  font-size: 0.875rem;
 }
 
 /* ===== Code Block Header ===== */
