@@ -7,9 +7,9 @@ toc: true
 summary: "Investigating a compromised Windows workstation using Volatility 3 memory forensics to trace the threat actor's path from initial access to exfiltration."
 ---
 
-## Description
+## Sherlock Scenario
 
-	Happy Grunwald, the CEO of Forela, decided to expand the company's business in Lahore, Pakistan, and brought along his IT Administrator, Alonzo Spire, to help set up the new office and ensure the company's IT infrastructure was running smoothly. However, they faced some challenges due to the language barrier and unreliable power supply in the area. Despite these challenges, they worked closely with local vendors to set up the new office, and Alonzo ensured the IT infrastructure was secure and reliable. They also made an effort to learn about the local culture and customs, which helped them build relationships with the locals. After a few days, Happy received a call from the UK security team, informing him that his workstation had been compromised, despite having received security awareness training and not opening any suspicious emails or links. A memory dump was retrieved and provided to you as the forensic analyst. Your task is to analyze the memory artefact and provide insight into the threat actor who compromised the workstation.
+Happy Grunwald, the CEO of Forela, decided to expand the company's business in Lahore, Pakistan, and brought along his IT Administrator, Alonzo Spire, to help set up the new office and ensure the company's IT infrastructure was running smoothly. However, they faced some challenges due to the language barrier and unreliable power supply in the area. Despite these challenges, they worked closely with local vendors to set up the new office, and Alonzo ensured the IT infrastructure was secure and reliable. They also made an effort to learn about the local culture and customs, which helped them build relationships with the locals. After a few days, Happy received a call from the UK security team, informing him that his workstation had been compromised, despite having received security awareness training and not opening any suspicious emails or links. A memory dump was retrieved and provided to you as the forensic analyst. Your task is to analyze the memory artefact and provide insight into the threat actor who compromised the workstation.
 
 
 
